@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import blogService from '../services/blogs'
 
-const CreateBlog = ({ setSuccessMsg, setErrorMsg, user, onCreate }) => {
+const CreateBlog = ({ setSuccessMsg, setErrorMsg, onCreate }) => {
 	const [title, setTitle] = useState("");
 	const [author, setAuthor] = useState("");
 	const [url, setUrl] = useState("");
@@ -9,29 +8,14 @@ const CreateBlog = ({ setSuccessMsg, setErrorMsg, user, onCreate }) => {
 	
 	const handleBlogSubmit = async (event) => {
 		event.preventDefault();
-
 		const blogObject = {
 			title, author, url, likes
 		}
-
-		try {
-			const createdBlog = await blogService.create(blogObject, user.token);
-			onCreate(createdBlog);
-            setTitle("")
-			setAuthor("")
-			setUrl("")
-			setLikes(0)
-
-			setSuccessMsg(`blog created`)
-			setTimeout(() => { setSuccessMsg(null) }, 3000);
-			console.log('blog created: ', createdBlog);
-
-		} catch (error) {
-			setErrorMsg(`blog creation failed - ${error.message}`)
-			setTimeout(() => { setErrorMsg(null) }, 3000);
-			console.log(error.message);
-		}
-
+        onCreate(blogObject);
+        setTitle("")
+        setAuthor("")
+        setUrl("")
+        setLikes(0)
 	}
 
 	return (
@@ -54,7 +38,7 @@ const CreateBlog = ({ setSuccessMsg, setErrorMsg, user, onCreate }) => {
 					likes
 					<input type="number" value={likes} name="Likes" onChange={e => {if (e.target.value >= 0 ) setLikes(e.target.value)}}/>
 				</div>
-				<button type='submit'>add</button>
+				<button type='submit'>create</button>
 			</form>
 		</>
 	);

@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Blog from './components/Blog'
 import Login from './components/Login'
 import Notification from './components/Notification'
 import CreateBlog from './components/CreateBlog'
+import Togglable from './components/Togglable'
 
 import blogService from './services/blogs'
 import loginService from './services/login'
@@ -15,12 +16,14 @@ const App = () => {
 	const [user, setUser] = useState(null);
 	const [successMsg, setSuccessMsg] = useState(null);
 	const [errorMsg, setErrorMsg] = useState(null);
+	const togglableRef = useRef(null);
 
 	useEffect(() => {
 
 		const fetchBlogs = async () => {
 			const blogs = await blogService.getAll()
 			setBlogs(blogs);
+			console.log(blogs);
 		}
 		fetchBlogs();
 		
@@ -71,9 +74,61 @@ const App = () => {
 		console.log('logged out')
 	}
 
-	const handleCreate = (createdBlog) => {
-		setBlogs(blogs.concat(createdBlog));
+	const handleCreate = async (blogObject) => {
+		try {
+			const createdBlog = await blogService.create(blogObject, user.token);
+			setBlogs(blogs.concat(createdBlog));
+            
+			// hide form after successful blog creation
+			togglableRef.current.setVisible(false);
+
+			setSuccessMsg(`blog created`)
+			setTimeout(() => { setSuccessMsg(null) }, 3000);
+			console.log('blog created: ', createdBlog);
+
+		} catch (error) {
+			setErrorMsg(`blog creation failed - ${error.message}`)
+			setTimeout(() => { setErrorMsg(null) }, 3000);
+			console.log(error.message);
+		}
 	}
+
+	const handleLike = async (blogObject) => {
+		const updatedBlogObject = {...blogObject, likes: blogObject.likes+1};
+		try {
+			const updatedBlog = await blogService.update(updatedBlogObject, user.token);
+			setBlogs(blogs.map(blog => blog.id === updatedBlog.id ? updatedBlog : blog));
+        
+			setSuccessMsg(`blog updated`)
+			setTimeout(() => { setSuccessMsg(null) }, 3000);
+			console.log('blog updated: ', updatedBlog);
+
+		} catch (error) {
+			setErrorMsg(`blog update failed - ${error.message}`)
+			setTimeout(() => { setErrorMsg(null) }, 3000);
+			console.log(error.message);
+		}
+	}
+
+	const handleDelete = async (blogObject) => {
+		if(window.confirm(`Remove blog: ${blogObject.title} by ${blogObject.author}`)) {
+			try {
+				await blogService.remove(blogObject, user.token);
+				setBlogs(blogs.filter(blog => blog.id !== blogObject.id));
+	
+				setSuccessMsg(`blog deleted`)
+				setTimeout(() => { setSuccessMsg(null) }, 3000);
+				console.log('blog deleted');
+	
+			} catch (error) {
+				setErrorMsg(`blog deletion failed - ${error.message}`)
+				setTimeout(() => { setErrorMsg(null) }, 3000);
+				console.log(error.message);
+			}
+		}
+	}
+
+	const sortedBlogs = blogs.sort((a, b) => b.likes - a.likes); 
 
 	return (
 		<div>
@@ -82,23 +137,27 @@ const App = () => {
 			<Notification message={errorMsg} className={"errorNotification"}/>
 			
 			{ user === null ? 
-				<Login 
-					username={username} 
-					password={password} 
-					onUsernameChange={handleUsernameChange} 
-					onPasswordChange={handlePasswordChange} 
-					onSubmit={handleLoginSubmit}
-				/> :
+				<Togglable buttonLabel="login"> 
+					<Login 
+						username={username} 
+						password={password} 
+						onUsernameChange={handleUsernameChange} 
+						onPasswordChange={handlePasswordChange} 
+						onSubmit={handleLoginSubmit}
+					/>
+				</Togglable> :
 				<>
 					<div>
 						{user.name} - logged in
 						<button onClick={handleLogout}>logout</button>
 					</div>
 					<div>
-						<CreateBlog setSuccessMsg={setSuccessMsg} setErrorMsg={setErrorMsg} user={user} onCreate={handleCreate} />
-			
-						{blogs.map(blog =>
-							<Blog key={blog.id} blog={blog} />
+						<Togglable buttonLabel="new blog" refProp={(ref) => {togglableRef.current = ref}} > 
+							<CreateBlog setSuccessMsg={setSuccessMsg} setErrorMsg={setErrorMsg} onCreate={handleCreate} />
+						</Togglable>
+						
+						{sortedBlogs.map(blog =>
+							<Blog key={blog.id} user={user} blog={blog} onLike={handleLike} onDelete={handleDelete} />
 						)}
 					</div>
 				</>
